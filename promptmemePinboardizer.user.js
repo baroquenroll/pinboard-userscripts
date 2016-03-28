@@ -36,106 +36,78 @@ var charTagPrefix = "";
  * Site-dependent selectors for prompts (top-level comments) and their permalinks,
  * timestamps, subject lines, and body text
  * * * * * * * * * * * * */
-
-function getTopLevelComments(siteName) {
-    if(siteName === "lj") {
-        return $("div.comment-menu").not(":contains('Parent')").parent();
-    }
-    if(siteName === "dw") {
-        return $("div.comment-depth-1 > div.dwexpcomment");
-    }
-}
-
-function getChildSubjectLines(comment, siteName) {
-    var children;
-    if(siteName === "lj") {
-        children = $(comment).nextUntil(getTopLevelComments(siteName)).filter("div.comment-wrap");
-    }
-    if(siteName === "dw") {
-        children = $(comment).parent().nextUntil($("div.comment-depth-1"));
-    }
-    var childSubjectLines = [];
-    children.each(function(index) {
-        if(siteName === "dw") {
-            childSubjectLines.push($(this).find(".comment-title").text());
-        }
-        else if($(this).hasClass("partial")) {
-            childSubjectLines.push($(this).children("a[href]").text());
+ 
+ var ljSelectors = {
+     'getTopLevelComments' : function() {
+         return $("div.comment-menu").not(":contains('Parent')").parent(); 
+     },
+     'getSubthreadComments' : function(comment) { 
+        return $(comment).nextUntil(selectors.getTopLevelComments()).filter("div.comment-wrap");
+     },
+     'getPermalink' : function(comment) {
+         return $(comment).find("a.comment-permalink").attr("href");
+     },
+     'getTimestamp' : function(comment) {
+         return $(comment).find("span.datetimelink:first").text();
+     },
+     'getSubject' : function(comment) {
+        if($(comment).hasClass("partial")) {
+            return $(comment).children("a[href]").first().text().trim();
         } else {
-            childSubjectLines.push($(this).find("h3").text());
+            return $(comment).find("h3").first().text().trim();
         }
-    });
-    return childSubjectLines;
-}
-
-function getPermalink(comment, siteName) {
-    if(siteName === "lj") {
-        return $(comment).find("a.comment-permalink").attr("href");
-    }
-    if(siteName === "dw") {
-        return $(comment).find(".commentpermalink > a").attr("href");
-    }
-}
-
-function getTimestamp(comment, siteName) {
-    if(siteName === "lj") {
-        return $(comment).find("span.datetimelink:first").text();
-    }
-    if(siteName === "dw") {
-        return $(comment).find("span.datetime > span:last-child:first").text();
-    }
-}
-
-function getSubject(comment,siteName) {
-    if(siteName === "lj") {
-        return $(comment).find(".comment-head h3:first").text().trim();
-    }
-    if(siteName === "dw") {
-        return $(comment).find(".comment-title:first").text().trim();
-    }
-}
-
-function getCommentBody(comment,siteName) {
-    if(siteName === "lj") {
+     },
+     'getCommentBody' : function(comment) {
         return $(comment).find("div.comment-text").html();
-    }
-    if(siteName === "dw") {
-        return $(comment).find("div.comment-content").html();
-    }
-}
+     },
+     'getCommentingLinks' : function() {
+        return $("div.comments-links");
+     },
+     'addCommentingLink' : function(commentingLinks, linkHtml) {
+        $(commentingLinks).find(".replylink").after("<span class='emdash'> &mdash; </span>" + linkHtml);
+     }
+ };
 
-function getTags(comment,siteName) {
-    var tagList="";
-    if(autoTagFill(comment,siteName)) {
-        tagList += filledTag;
-    } else {
-        tagList += unfilledTag;
-    }
-    return tagList;
-}
+var dwSelectors = {
+     'getTopLevelComments' : function() { 
+        return $("div.comment-depth-1 > div.dwexpcomment");
+     },
+     'getSubthreadComments' : function(comment) { 
+        return $(comment).parent().nextUntil($("div.comment-depth-1"));
+     },
+     'getPermalink' : function(comment) {
+        return $(comment).find(".commentpermalink > a").attr("href");
+     },
+     'getTimestamp' : function(comment) {
+         return $(comment).find("span.datetime > span:last-child:first").text();
+     },
+     'getSubject' : function(comment) {
+         return $(comment).find(".comment-title:first").text().trim()
+     },
+     'getCommentBody' : function(comment) {
+         return $(comment).find("div.comment-content").html();
+     },
+     'getCommentingLinks' : function() {
+         return $("ul.entry-interaction-links");
+     },
+     'addCommentingLink' : function(commentingLinks, linkHtml) {
+         $(commentingLinks).append("<li>" + linkHtml + "</li>");
+     }
+};
 
-// detect LiveJournal or Dreamwidth
-var currentSiteName = "";
+// detect LiveJournal or Dreamwidth and set selectors
+var selectors;
 if(window.location.hostname.search("livejournal.com") >= 0) {
-    currentSiteName = "lj";
+    selectors = ljSelectors;
 }
 if(window.location.hostname.search("dreamwidth.org") >= 0) {
-    currentSiteName = "dw";
+    selectors = dwSelectors;
 }
-console.log("current site name: " + currentSiteName);
 
 // Insert Pinboardize link+form
-var pinboardizeLink = "";
-var commentLinks = "";
-if(currentSiteName === "dw") {
-    commentLinks = $("ul.entry-interaction-links");
-    commentLinks.append("<li><a href=\"javascript:$('.pinboardizeForm').toggle();\">Show/Hide Pinboard Export Form</a></li>");
-}
-if(currentSiteName === "lj") {
-    commentLinks = $("div.comments-links");
-    commentLinks.find(".replylink").after("<span class='emdash'> &mdash; </span><a href=\"javascript:$('.pinboardizeForm').toggle();\">Show/Hide Pinboard Export Form</a>");
-}
-console.log("comment links: " + $(commentLinks).text());
+var pinboardizeLink = "<a href=\"javascript:$('.pinboardizeForm').toggle();\">Show/Hide Pinboard Export Form</a>";
+var commentLinks = selectors.getCommentingLinks();
+selectors.addCommentingLink(commentLinks, pinboardizeLink);
 
 // On button click:
 // * Find top-level comments
@@ -145,28 +117,27 @@ console.log("comment links: " + $(commentLinks).text());
 // * Concatenate <post /> tags
 // * Insert textarea with concatenated <post />s as text
 
-var promptComments = getTopLevelComments(currentSiteName);
-var xmlTextArea = "<textarea rows='10' cols='80' class='pinboardizeForm' style='display:none;'>";
-for(var i=0; i<promptComments.length; i++) {
-    var promptXmlTag = assemblePostData(promptComments[i], currentSiteName);
+var promptComments = selectors.getTopLevelComments();
+var xmlTextArea = "<textarea rows='10' cols='120' class='pinboardizeForm' style='display:none;'>";
+promptComments.each(function() {
+    var promptXmlTag = assemblePostData($(this));
     xmlTextArea += (promptXmlTag + "\n\n");
-}
+});
 xmlTextArea += "</textarea><br/>";
 
 $(commentLinks).before(xmlTextArea);
 
-function assemblePostData(comment, siteName) {
-    var permalink = getPermalink(comment, siteName);
-    var subject = getSubject(comment, siteName);
+/* * * * FUNCTIONS * * * *
+ * Functions that aren't dependent on site-specific CSS selectors.
+ * * * * * * * * * * * */
+
+function assemblePostData(comment) {
+    var permalink = selectors.getPermalink(comment);
+    var subject = selectors.getSubject(comment);
     if(!subject.length) subject = "(no subject)";
-    var timestamp = "";
-    var commentBody = "";
-    var postTags = "";
-    if(permalink.length) {
-        timestamp = getTimestamp(comment, siteName);
-        commentBody = getCommentBody(comment, siteName);
-        postTags = getTags(comment, siteName);
-    }
+    var timestamp = selectors.getTimestamp(comment);
+    var commentBody = selectors.getCommentBody(comment);
+    var postTags = generateTags(comment);
     return convertToXml(permalink, subject, timestamp, commentBody, postTags);
 }
 
@@ -189,6 +160,7 @@ function convertToXml(permalink, subject, timestamp, commentBody, postTags) {
 }
 
 function convertToApiRequest(baseUrl, permalink, subject, timestamp, commentBody, postTags) {
+    // not actually tested/working
     var req = "";
     if(baseUrl.length && permalink.length && subject.length) {
         req = baseUrl + "add?url=" + encodeURIComponent(permalink) + "&description=" + encodeURIComponent(subject);
@@ -205,14 +177,25 @@ function convertToApiRequest(baseUrl, permalink, subject, timestamp, commentBody
     return req;
 }
 
+function generateTags(comment) {
+    var tagList="";
+    if(autoTagFill(comment)) {
+        tagList += filledTag;
+    } else {
+        tagList += unfilledTag;
+    }
+    return tagList;
+}
+
 function autoTagFill(comment, siteName) {
     // get subject lines of child comments if different from OP
     // look for keywords: fill, minifill, mini-fill, ignorewhitespace(#/?, #/#, part #, #n/#)
     var searchTerms = /(\bfill\b|mini.?fill|part \d)/i;
     var numericSearch = /\d[A-z]?\s?\/\s?(\d|\?)/;
-    var childSubjectLines = getChildSubjectLines(comment, siteName);
-    for(var i=0; i<childSubjectLines.length; i++) {
-        if(searchTerms.test(childSubjectLines[i]) || numericSearch.test(childSubjectLines[i])) {
+    var children = selectors.getSubthreadComments(comment);
+    for(var i=0; i<children.length; i++) {
+        var thisSubject = selectors.getSubject(children[i]);
+        if(searchTerms.test(thisSubject) || numericSearch.test(thisSubject)) {
             return true;
         }
     }
