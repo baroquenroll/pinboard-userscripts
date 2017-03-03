@@ -22,10 +22,10 @@ var pinboardApiToken = "";
 
 var filledTag = "-filled";
 var unfilledTag = "-unfilled";
-var charTagPrefix = "";
-//var characterTags = ["", ""];
-// AUTO-TAGGING: NOT IMPLEMENTED YET
-// To enable auto-tagging of fills, enter your Pinboard's fill tag
+var charTagPrefix = "char:";
+var characterTags = ["", ""];
+// AUTO-TAGGING INSTRUCTIONS
+// To enable auto-tagging of fills, enter your Pinboard's filled/unfilled tags
 // To enable auto-tagging of characters, enter your Pinboard's prefix for character tags
 // and a list of character names to search for
 // ALWAYS MANUALLY REVIEW THE AUTO-TAG SUGGESTIONS BEFORE COPYING OR HITTING 'SUBMIT'
@@ -137,7 +137,7 @@ function assemblePostData(comment) {
     if(!subject) subject = "(no subject)";
     var timestamp = selectors.getTimestamp(comment);
     var commentBody = selectors.getCommentBody(comment);
-    var postTags = generateTags(comment);
+    var postTags = generateTags(subject, comment);
     return convertToXml(permalink, subject, timestamp, commentBody, postTags);
 }
 
@@ -177,17 +177,21 @@ function convertToApiRequest(baseUrl, permalink, subject, timestamp, commentBody
     return req;
 }
 
-function generateTags(comment) {
-    var tagList="";
+function generateTags(subject, comment) {
+    var tagList=[];
     if(autoTagFill(comment)) {
-        tagList += filledTag;
+        tagList.push(filledTag);
     } else {
-        tagList += unfilledTag;
+        tagList.push(unfilledTag);
     }
-    return tagList;
+    var charTags = autoTagCharacters(subject, selectors.getCommentBody(comment));
+    if(charTags) {
+        tagList.push(charTags);
+    }
+    return tagList.join(" ");
 }
 
-function autoTagFill(comment, siteName) {
+function autoTagFill(comment) {
     // get subject lines of child comments if different from OP
     // look for keywords: fill, minifill, mini-fill, ignorewhitespace(#/?, #/#, part #, #n/#)
     var searchTerms = /(\bfill\b|mini.?fill|part \d)/i;
@@ -200,6 +204,17 @@ function autoTagFill(comment, siteName) {
         }
     }
     return false;
+}
+
+function autoTagCharacters(subject, comment) {
+    var charactersFound = [];
+    var searchText = subject.concat(" ", comment).toLowerCase();
+    for(var i=0; i<characterTags.length; i++) {
+        if(searchText.indexOf(characterTags[i].toLowerCase()) > -1) {
+            charactersFound.push(charTagPrefix + characterTags[i]);
+        }
+    }
+    return charactersFound.join(" ");
 }
 
 function encodeXmlEntities(str) {
