@@ -82,7 +82,7 @@ var dwSelectors = {
          return $(comment).find("span.datetime > span:last-child:first").text();
      },
      'getSubject' : function(comment) {
-         return $(comment).find(".comment-title:first").text().trim()
+         return $(comment).find(".comment-title:first").text().trim();
      },
      'getCommentBody' : function(comment) {
          return $(comment).find("div.comment-content").html();
@@ -134,7 +134,7 @@ $(commentLinks).before(xmlTextArea);
 function assemblePostData(comment) {
     var permalink = selectors.getPermalink(comment);
     var subject = selectors.getSubject(comment);
-    if(!subject.length) subject = "(no subject)";
+    if(!subject) subject = "(no subject)";
     var timestamp = selectors.getTimestamp(comment);
     var commentBody = selectors.getCommentBody(comment);
     var postTags = generateTags(comment);
@@ -143,14 +143,14 @@ function assemblePostData(comment) {
 
 function convertToXml(permalink, subject, timestamp, commentBody, postTags) {
     var postXml = "";
-    if(permalink.length && subject.length) {
+    if(permalink && subject) {
         postXml = "&lt;post href=\"" + permalink + "\"";
         // todo: convert timestamp
         postXml += " description=\"" + encodeXmlEntities(subject) + "\"";
-        if(commentBody.length) {
+        if(commentBody) {
             postXml += " extended=\"" + encodeXmlEntities(commentBody) + "\"";
         }
-        if(postTags.length) {
+        if(postTags) {
             postXml += " tag=\"" + encodeXmlEntities(postTags) + "\"";
         }
         postXml +=" /&gt;";
@@ -162,15 +162,15 @@ function convertToXml(permalink, subject, timestamp, commentBody, postTags) {
 function convertToApiRequest(baseUrl, permalink, subject, timestamp, commentBody, postTags) {
     // not actually tested/working
     var req = "";
-    if(baseUrl.length && permalink.length && subject.length) {
+    if(baseUrl && permalink && subject) {
         req = baseUrl + "add?url=" + encodeURIComponent(permalink) + "&description=" + encodeURIComponent(subject);
-        if(timestamp.length) {
+        if(timestamp) {
             // todo
         }
-        if(commentBody.length) {
+        if(commentBody) {
             req += "&extended=" + encodeURIComponent(commentBody);
         }
-        if(postTags.length) {
+        if(postTags) {
             // todo
         }
     }
