@@ -12,7 +12,7 @@
 
 /*** CONFIG ***/
 
-var backdateTimestamps = false;
+var backdateTimestamps = true;
 // Set to true if you want to set bookmark timestamps to the date the original comment was posted.
 
 var pinboardApiToken = "";
@@ -145,7 +145,9 @@ function convertToXml(permalink, subject, timestamp, commentBody, postTags) {
     var postXml = "";
     if(permalink && subject) {
         postXml = "&lt;post href=\"" + permalink + "\"";
-        // todo: convert timestamp
+        if(backdateTimestamps && timestamp) {
+            postXml += " time=\"" + convertTimestamp(timestamp) + "\"";
+        }
         postXml += " description=\"" + encodeXmlEntities(subject) + "\"";
         if(commentBody) {
             postXml += " extended=\"" + encodeXmlEntities(commentBody) + "\"";
@@ -175,6 +177,24 @@ function convertToApiRequest(baseUrl, permalink, subject, timestamp, commentBody
         }
     }
     return req;
+}
+
+function convertTimestamp(timestamp) {
+    // assumes format is "2000-01-01 12:01 am (UTC)"
+    var parts = timestamp.split(" ");
+    var isUTC = (timestamp.indexOf("UTC") > -1);
+    // change 12:xx am to 00:xx
+    if(parts[2] == "am" && parts[1].startsWith("12")) {
+        parts[1] = "00" + parts[1].substr(2);
+    }
+    // convert 1pm and up to 24h time
+    if(parts[2] == "pm" && !parts[1].startsWith("12")) {
+        var hh = Number(parts[1].substr(0,2));
+        hh = hh + 12;
+        parts[1] = String(hh) + parts[1].substr(2);
+    }
+    // return in ISO date/time format
+    return parts[0] + "T" + parts[1] + (isUTC ? "Z" : "");
 }
 
 function generateTags(subject, comment) {
