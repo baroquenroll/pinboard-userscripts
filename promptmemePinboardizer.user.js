@@ -48,7 +48,7 @@ var characterTags = ["", ""];
          return $(comment).find("a.comment-permalink").attr("href");
      },
      'getTimestamp' : function(comment) {
-         return $(comment).find("span.datetimelink:first").text();
+         return $(comment).find("span.comment-datetimelink:first").text();
      },
      'getSubject' : function(comment) {
         if($(comment).hasClass("partial")) {
@@ -239,7 +239,8 @@ function autoTagCharacters(subject, comment) {
 
 function encodeXmlEntities(str) {
     str = str.replace(/<wbr>/g, "");
-    str = str.replace(/<br>/g, "\n");
+    str = str.replace(/<br>/g, " ");
+    // TODO find a way to preserve line breaks that won't be eaten by Pinboard import
     str = str.replace(/[<>"]/g, function (c) {
         switch (c) {
             //case '&': return '&amp;amp;';
